@@ -1,9 +1,11 @@
-use crate::error::{ErrorKind, Result};
-use crate::Payload;
+use std::fmt;
+
 use chrono::NaiveDateTime;
 use reqwest::{Client, Url};
 use serde::{Serialize, Serializer};
-use std::fmt;
+
+use crate::error::{SlackError, SlackResult};
+use crate::Payload;
 
 /// Handles sending messages to slack
 #[derive(Debug, Clone)]
@@ -14,7 +16,7 @@ pub struct Slack {
 
 impl Slack {
     /// Construct a new instance of slack for a specific incoming url endpoint.
-    pub fn new<T: reqwest::IntoUrl>(hook: T) -> Result<Slack> {
+    pub fn new<T: reqwest::IntoUrl>(hook: T) -> SlackResult<Slack> {
         Ok(Slack {
             hook: hook.into_url()?,
             client: Client::new(),
@@ -22,13 +24,18 @@ impl Slack {
     }
 
     /// Send payload to slack service
-    pub fn send(&self, payload: &Payload) -> Result<()> {
-        let response = self.client.post(self.hook.clone()).json(payload).send()?;
+    pub async fn send(&self, payload: &Payload) -> SlackResult<()> {
+        let response = self
+            .client
+            .post(self.hook.clone())
+            .json(payload)
+            .send()
+            .await?;
 
         if response.status().is_success() {
             Ok(())
         } else {
-            Err(ErrorKind::Slack(format!("HTTP error {}", response.status())).into())
+            Err(SlackError::Slack(format!("HTTP error {}", response.status())).into())
         }
     }
 }
@@ -45,7 +52,7 @@ impl SlackTime {
 }
 
 impl Serialize for SlackTime {
-    fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -155,7 +162,7 @@ impl fmt::Display for SlackLink {
 }
 
 impl Serialize for SlackLink {
-    fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -189,7 +196,7 @@ impl fmt::Display for SlackUserLink {
 }
 
 impl Serialize for SlackUserLink {
-    fn serialize<S>(&self, serializer: S) -> ::std::result::Result<S::Ok, S::Error>
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
         S: Serializer,
     {
@@ -199,11 +206,13 @@ impl Serialize for SlackUserLink {
 
 #[cfg(test)]
 mod test {
-    use crate::slack::{Slack, SlackLink};
-    use crate::{AttachmentBuilder, Field, Parse, PayloadBuilder, SlackText};
     use chrono::NaiveDateTime;
+
     #[cfg(feature = "unstable")]
     use test::Bencher;
+
+    use crate::slack::{Slack, SlackLink};
+    use crate::{AttachmentBuilder, Field, Parse, PayloadBuilder, SlackText};
 
     #[test]
     fn slack_incoming_url_test() {
@@ -268,8 +277,10 @@ mod test {
             .build()
             .unwrap();
 
-        assert_eq!(serde_json::to_string(&p).unwrap(),
-            r##"{"text":"test message","channel":"#abc","username":"Bot","icon_url":"https://example.com/","icon_emoji":":chart_with_upwards_trend:","attachments":[{"fallback":"fallback &lt;&amp;&gt;","text":"text &lt;&amp;&gt;","color":"#6800e8","fields":[{"title":"title","value":"value"}],"title_link":"https://title_link.com/","ts":123456789}],"unfurl_links":false,"link_names":1,"parse":"full"}"##.to_owned())
+        assert_eq!(
+            serde_json::to_string(&p).unwrap(),
+            r##"{"text":"test message","channel":"#abc","username":"Bot","icon_url":"https://example.com/","icon_emoji":":chart_with_upwards_trend:","attachments":[{"fallback":"fallback &lt;&amp;&gt;","text":"text &lt;&amp;&gt;","color":"#6800e8","fields":[{"title":"title","value":"value"}],"title_link":"https://title_link.com/","ts":123456789}],"unfurl_links":false,"link_names":1,"parse":"full"}"##.to_owned()
+        )
     }
 
     #[test]

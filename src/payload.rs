@@ -1,7 +1,8 @@
-use crate::error::Result;
-use crate::{Attachment, SlackText};
-use reqwest::Url;
 use serde::{Serialize, Serializer};
+use url::Url;
+
+use crate::error::SlackResult;
+use crate::{Attachment, SlackText};
 
 /// Payload to send to slack
 /// https://api.slack.com/incoming-webhooks
@@ -22,7 +23,6 @@ pub struct Payload {
     pub username: Option<String>,
     /// specific url for icon
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "::url_serde")]
     pub icon_url: Option<Url>,
     /// emjoi for icon
     /// https://api.slack.com/methods/emoji.list
@@ -67,10 +67,11 @@ impl Serialize for Parse {
         serializer.serialize_str(st)
     }
 }
+
 /// `PayloadBuilder` is used to build a `Payload`
 #[derive(Debug)]
 pub struct PayloadBuilder {
-    inner: Result<Payload>,
+    inner: SlackResult<Payload>,
 }
 
 impl Default for PayloadBuilder {
@@ -196,7 +197,7 @@ impl PayloadBuilder {
     }
 
     /// Attempt to build the `Payload`
-    pub fn build(self) -> Result<Payload> {
+    pub fn build(self) -> SlackResult<Payload> {
         self.inner
     }
 }
