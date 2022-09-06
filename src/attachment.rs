@@ -1,9 +1,11 @@
-use crate::error::{Error, Result};
-use crate::{HexColor, SlackText, SlackTime};
-use chrono::NaiveDateTime;
-use reqwest::Url;
-use serde::Serialize;
 use std::convert::TryInto;
+
+use chrono::NaiveDateTime;
+use serde::Serialize;
+use url::Url;
+
+use crate::error::{SlackError, SlackResult};
+use crate::{HexColor, SlackText, SlackTime};
 
 /// Slack allows for attachments to be added to messages. See
 /// https://api.slack.com/docs/attachments for more information.
@@ -34,28 +36,23 @@ pub struct Attachment {
     /// Optional URL that will hyperlink the `author_name` text mentioned above. Will only
     /// work if `author_name` is present.
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "::url_serde")]
     pub author_link: Option<Url>,
     /// Optional URL that displays a small 16x16px image to the left of
     /// the `author_name` text. Will only work if `author_name` is present.
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "::url_serde")]
     pub author_icon: Option<Url>,
     /// Optional larger, bolder text above the main body
     #[serde(skip_serializing_if = "Option::is_none")]
     pub title: Option<SlackText>,
     /// Optional URL to link to from the title
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "::url_serde")]
     pub title_link: Option<Url>,
     /// Optional URL to an image that will be displayed in the body
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "::url_serde")]
     pub image_url: Option<Url>,
     /// Optional URL to an image that will be displayed as a thumbnail to the
     /// right of the body
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "::url_serde")]
     pub thumb_url: Option<Url>,
     /// Optional text that will appear at the bottom of the attachment
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -63,7 +60,6 @@ pub struct Attachment {
     /// Optional URL to an image that will be displayed at the bottom of the
     /// attachment
     #[serde(skip_serializing_if = "Option::is_none")]
-    #[serde(with = "::url_serde")]
     pub footer_icon: Option<Url>,
     /// Optional timestamp to be displayed with the attachment
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -87,6 +83,7 @@ pub enum Section {
     /// The fields.
     Fields,
 }
+
 /// Actions are defined as an array, and values contained within it will
 /// be displayed with the message.
 #[derive(Serialize, Debug, Clone, PartialEq)]
@@ -124,6 +121,7 @@ impl Action {
         }
     }
 }
+
 /// Fields are defined as an array, and hashes contained within it will
 /// be displayed in a table inside the message attachment.
 #[derive(Serialize, Debug, Clone, PartialEq)]
@@ -158,7 +156,7 @@ impl Field {
 /// `AttachmentBuilder` is used to build a `Attachment`
 #[derive(Debug)]
 pub struct AttachmentBuilder {
-    inner: Result<Attachment>,
+    inner: SlackResult<Attachment>,
 }
 
 impl AttachmentBuilder {
@@ -194,7 +192,7 @@ impl AttachmentBuilder {
     /// 3. Any valid hex color code: e.g. `#b13d41` or `#000`.
     ///
     /// hex color codes will be checked to ensure a valid hex number is provided
-    pub fn color<C: TryInto<HexColor, Error = Error>>(self, color: C) -> AttachmentBuilder {
+    pub fn color<C: TryInto<HexColor, Error = SlackError>>(self, color: C) -> AttachmentBuilder {
         match self.inner {
             Ok(mut inner) => match color.try_into() {
                 Ok(c) => {
@@ -339,7 +337,7 @@ impl AttachmentBuilder {
     }
 
     /// Attempt to build the `Attachment`
-    pub fn build(self) -> Result<Attachment> {
+    pub fn build(self) -> SlackResult<Attachment> {
         // set text to equal fallback if text wasn't specified
         match self.inner {
             Ok(mut inner) => {

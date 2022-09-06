@@ -1,27 +1,24 @@
-error_chain! {
-    types {
-        Error, ErrorKind, ResultExt, Result;
-    }
+use thiserror::Error as ThisError;
 
-    foreign_links {
-        Utf8(::std::str::Utf8Error) #[doc = "utf8 error, slack responses should be valid utf8"];
-        Serialize(::serde_json::error::Error) #[doc = "`serde_json::error::Error`"];
-        FromHex(::hex::FromHexError) #[doc = "`rustc_serialize::hex::FromHexError`"];
-        Reqwest(::reqwest::Error) #[doc = "`reqwest::Error`"];
-        Url(::reqwest::UrlError) #[doc = "`reqwest::UrlError`"];
-        Io(::std::io::Error) #[doc = "`std::io::Error`"];
-    }
+pub type SlackResult<T> = Result<T, SlackError>;
 
-    errors {
-        /// slack service error
-        Slack(err: String) {
-            description("slack service error")
-            display("slack service error: {}", err)
-        }
-        /// `HexColor` parsing error
-        HexColor(err: String) {
-            description("hex color parsing error")
-            display("hex color parsing error: {}", err)
-        }
-    }
+/// Error enum.
+#[derive(ThisError, Debug)]
+pub enum SlackError {
+    #[error("slack service error: {0}")]
+    Slack(String),
+    #[error("hex color parsing error: {0}")]
+    HexColor(String),
+    #[error(transparent)]
+    Utf8(#[from] std::str::Utf8Error),
+    #[error(transparent)]
+    Serialize(#[from] serde_json::error::Error),
+    #[error(transparent)]
+    FromHex(#[from] hex::FromHexError),
+    #[error(transparent)]
+    Reqwest(#[from] reqwest::Error),
+    // #[error(transparent)]
+    // Url(#[from] reqwest::UrlError),
+    #[error(transparent)]
+    Io(#[from] std::io::Error),
 }

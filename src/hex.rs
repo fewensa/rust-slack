@@ -1,6 +1,6 @@
-use crate::error::{Error, ErrorKind};
 use std::{convert::TryFrom, str::FromStr};
 
+use crate::error::SlackError;
 use hex::FromHex;
 use serde::Serialize;
 
@@ -31,7 +31,7 @@ impl ::std::fmt::Display for HexColor {
 }
 
 impl TryFrom<&str> for HexColor {
-    type Error = Error;
+    type Error = SlackError;
 
     fn try_from(s: &str) -> Result<Self, Self::Error> {
         s.parse()
@@ -75,7 +75,7 @@ impl From<SlackColor> for HexColor {
 }
 
 impl FromStr for HexColor {
-    type Err = Error;
+    type Err = SlackError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s: String = s.into();
@@ -85,7 +85,7 @@ impl FromStr for HexColor {
 
         let num_chars = s.chars().count();
         if num_chars != 7 && num_chars != 4 {
-            return Err(ErrorKind::HexColor(format!(
+            return Err(SlackError::HexColor(format!(
                 "Must be 4 or 7 characters long (including #): \
                  found `{}`",
                 s
@@ -93,7 +93,7 @@ impl FromStr for HexColor {
             .into());
         }
         if !s.starts_with('#') {
-            return Err(ErrorKind::HexColor(format!("No leading #: found `{}`", s)).into());
+            return Err(SlackError::HexColor(format!("No leading #: found `{}`", s)).into());
         }
 
         // #d18 -> #dd1188
@@ -150,7 +150,7 @@ mod test {
 
     #[test]
     fn test_hex_color_good() {
-        let h: HexColor = HexColor::try_from(SlackColor::Good).unwrap();
+        let h: HexColor = HexColor::try_from(SlackColor::Good.as_ref()).unwrap();
         assert_eq!(h.to_string(), "good");
     }
 
